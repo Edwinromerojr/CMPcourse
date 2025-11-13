@@ -2,9 +2,10 @@ package org.kot.cmpcourse
 
 import androidx.compose.runtime.Composable
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.kot.cmpcourse.scaffold.ScaffoldScreen
 
 @Composable
 @Preview
 fun App() {
-    CounterScreen()
+    ScaffoldScreen()
 }
