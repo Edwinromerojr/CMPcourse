@@ -62,6 +62,7 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
                 implementation("com.russhwolf:multiplatform-settings:1.3.0")
                 implementation("com.russhwolf:multiplatform-settings-no-arg:1.3.0")
+                implementation("io.insert-koin:koin-core:4.0.3")
             }
         }
         commonTest.dependencies {

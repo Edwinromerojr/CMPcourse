@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
+import org.kot.cmpcourse.repository.AppRepository
 import org.kot.cmpcourse.settings.AppSettings
 import kotlin.math.log
 
@@ -289,7 +292,7 @@ class MainTabsComponent(
     private fun createMainTabsChild(tab: Tab, context: ComponentContext): MainTabsChild {
         return when (tab) {
             Tab.HOME -> {
-                val component = HomeComponent(
+                val component = HomeComponent.factory(
                     context = context,
                     navigateToDetail = {
                         navigateToDetail()
@@ -320,14 +323,28 @@ class MainTabsComponent(
 
 class HomeComponent(
     context: ComponentContext,
+    private val appRepository: AppRepository,
     private val navigateToDetail: () -> Unit,
 ) : ComponentContext by context {
 
     private val _email: MutableStateFlow<String> = MutableStateFlow("")
     val email: StateFlow<String> = _email
 
+    companion object : KoinComponent {
+        fun factory(
+            context: ComponentContext,
+            navigateToDetail: () -> Unit,
+        ) : HomeComponent {
+            return HomeComponent(
+                context = context,
+                navigateToDetail = navigateToDetail,
+                appRepository = get()
+            )
+        }
+    }
+
     init {
-        val currentEmail = AppSettings.getString(AppSettings.EMAIL, "")
+        val currentEmail = appRepository.getLoggedInEmail()
         _email.update { currentEmail }
     }
 

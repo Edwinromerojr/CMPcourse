@@ -7,28 +7,35 @@ import androidx.compose.ui.window.rememberWindowState
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
+import org.koin.core.context.startKoin
+import org.kot.cmpcourse.di.appModule
 import org.kot.cmpcourse.multinavigation.MultiNavigationRootComponent
 import org.kot.cmpcourse.navigation.RootComponent
 import javax.swing.SwingUtilities
 
-fun main() = application {
-    val windowsState = rememberWindowState()
-    val lifecycle = LifecycleRegistry()
-
-    val rootComponent = runOnUiThread {
-        MultiNavigationRootComponent(DefaultComponentContext(lifecycle))
+fun main() {
+    startKoin {
+        modules(appModule)
     }
+    application {
+        val windowsState = rememberWindowState()
+        val lifecycle = LifecycleRegistry()
 
-    Window(
-        onCloseRequest = ::exitApplication,
-        title = "CMPcourse",
-    ) {
-        LifecycleController(
-            lifecycle,
-            windowState = windowsState,
-            windowInfo = LocalWindowInfo.current
-        )
-        App(rootComponent)
+        val rootComponent = runOnUiThread {
+            MultiNavigationRootComponent(DefaultComponentContext(lifecycle))
+        }
+
+        Window(
+            onCloseRequest = ::exitApplication,
+            title = "CMPcourse",
+        ) {
+            LifecycleController(
+                lifecycle,
+                windowState = windowsState,
+                windowInfo = LocalWindowInfo.current
+            )
+            App(rootComponent)
+        }
     }
 }
 
