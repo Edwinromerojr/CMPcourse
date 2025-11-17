@@ -14,7 +14,8 @@ class RootComponent(context: ComponentContext) : ComponentContext by context {
         source = navigation,
         serializer = RootScreen.serializer(),
         initialConfiguration = RootScreen.ScreenA,
-        childFactory = ::createRootChild
+        childFactory = ::createRootChild,
+        key = "Root"
     )
 
     fun createRootChild(screen: RootScreen, context: ComponentContext): RootChild {

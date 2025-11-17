@@ -7,6 +7,7 @@ import androidx.compose.ui.window.rememberWindowState
 import com.arkivanov.decompose.DefaultComponentContext
 import com.arkivanov.decompose.extensions.compose.lifecycle.LifecycleController
 import com.arkivanov.essenty.lifecycle.LifecycleRegistry
+import org.kot.cmpcourse.multinavigation.MultiNavigationRootComponent
 import org.kot.cmpcourse.navigation.RootComponent
 import javax.swing.SwingUtilities
 
@@ -15,7 +16,7 @@ fun main() = application {
     val lifecycle = LifecycleRegistry()
 
     val rootComponent = runOnUiThread {
-        RootComponent(DefaultComponentContext(lifecycle))
+        MultiNavigationRootComponent(DefaultComponentContext(lifecycle))
     }
 
     Window(

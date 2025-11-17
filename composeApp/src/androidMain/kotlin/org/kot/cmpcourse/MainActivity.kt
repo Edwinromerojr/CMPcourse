@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.arkivanov.decompose.retainedComponent
+import org.kot.cmpcourse.multinavigation.MultiNavigationRootComponent
 import org.kot.cmpcourse.navigation.RootComponent
 
 class MainActivity : ComponentActivity() {
@@ -15,7 +16,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         val root = retainedComponent { context ->
-            RootComponent(context)
+            MultiNavigationRootComponent(context)
         }
 
         setContent {
