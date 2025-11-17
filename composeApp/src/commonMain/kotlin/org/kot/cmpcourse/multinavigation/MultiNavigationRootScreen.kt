@@ -2,7 +2,9 @@ package org.kot.cmpcourse.multinavigation
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Home
@@ -13,9 +15,13 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.arkivanov.decompose.extensions.compose.stack.Children
 import com.arkivanov.decompose.extensions.compose.subscribeAsState
 
@@ -81,11 +87,19 @@ fun MultiNavigationRegisterScreen(component: RegisterComponent){
 
 @Composable
 fun MultiNavigationLoginScreen(component: LoginComponent){
+    val email by component.email.collectAsStateWithLifecycle()
+
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ){
+        TextField(
+            value = email,
+            onValueChange = { newEmail ->
+                component.updateEmail(newEmail)
+            }
+        )
         Button(onClick = {
             component.login()
         }){
@@ -157,11 +171,16 @@ fun MultiNavigationMainTabsScreen(component: MainTabsComponent){
 
 @Composable
 fun MultiNavigationHomeScreen(component: HomeComponent){
+    val email by component.email.collectAsStateWithLifecycle()
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ){
+        Text(
+            text = email
+        )
+        Spacer(modifier = Modifier.height(8.dp))
         Button(onClick = {
             component.goToDetail()
         }){
@@ -178,6 +197,11 @@ fun MultiNavigationProfileScreen(component: ProfileComponent){
         verticalArrangement = Arrangement.Center
     ){
         Text(text = "Profile Screen")
+        Button(onClick = {
+            component.doLogout()
+        }){
+            Text(text = "Logout")
+        }
     }
 }
 

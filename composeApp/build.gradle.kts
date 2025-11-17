@@ -60,6 +60,8 @@ kotlin {
                 implementation("com.arkivanov.decompose:decompose:3.4.0")
                 implementation("com.arkivanov.decompose:extensions-compose:3.4.0")
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
+                implementation("com.russhwolf:multiplatform-settings:1.3.0")
+                implementation("com.russhwolf:multiplatform-settings-no-arg:1.3.0")
             }
         }
         commonTest.dependencies {

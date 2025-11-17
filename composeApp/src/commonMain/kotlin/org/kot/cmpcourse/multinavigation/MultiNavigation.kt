@@ -9,15 +9,35 @@ import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.pop
 import com.arkivanov.decompose.router.stack.pushNew
 import com.arkivanov.decompose.router.stack.replaceAll
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.serialization.Serializable
+import org.kot.cmpcourse.settings.AppSettings
+import kotlin.math.log
 
 class MultiNavigationRootComponent(context: ComponentContext) : ComponentContext by context {
 
+    private val _initialConfiguration: MutableStateFlow<RootConfiguration> = MutableStateFlow(
+        RootConfiguration.Auth
+    )
+
     val navigation = StackNavigation<RootConfiguration>()
+
+    init {
+        val email = AppSettings.getString(AppSettings.EMAIL, "")
+
+        if (email.isNotBlank()) {
+            _initialConfiguration.value = RootConfiguration.Main
+        } else {
+            _initialConfiguration.value = RootConfiguration.Auth
+        }
+    }
 
     val childStack = childStack(
         source = navigation,
-        initialConfiguration = RootConfiguration.Auth,
+        initialConfiguration = _initialConfiguration.value,
         childFactory = ::createRootChild,
         serializer = RootConfiguration.serializer(),
         key = "MultiNavigation"
@@ -35,7 +55,12 @@ class MultiNavigationRootComponent(context: ComponentContext) : ComponentContext
                 RootChild.Auth(authComponent)
             }
             is RootConfiguration.Main -> {
-                val mainComponent = MainComponent(context)
+                val mainComponent = MainComponent(
+                    context = context,
+                    logout = {
+                        navigation.replaceAll(RootConfiguration.Auth)
+                    }
+                )
                 RootChild.Main(mainComponent)
             }
         }
@@ -164,18 +189,29 @@ class LoginComponent(
     private val navigateToMain: () -> Unit
 ) : ComponentContext by context {
 
+    private val _email: MutableStateFlow<String> = MutableStateFlow("")
+    val email: StateFlow<String> = _email.asStateFlow()
+
     fun goBack(){
         onBack()
     }
 
+    fun updateEmail(newEmail: String) {
+        _email.update { newEmail }
+    }
+
     fun login(){
-        //login
+        val currentEmail = _email.value
+        AppSettings.putString(
+            AppSettings.EMAIL,
+            currentEmail
+        )
 
         navigateToMain()
     }
 }
 
-class MainComponent(context: ComponentContext) : ComponentContext by context {
+class MainComponent(context: ComponentContext, private val logout: () -> Unit) : ComponentContext by context {
 
     val navigation = StackNavigation<MainConfiguration>()
 
@@ -193,7 +229,8 @@ class MainComponent(context: ComponentContext) : ComponentContext by context {
                     context = context,
                     navigateToDetail = {
                         navigation.pushNew(MainConfiguration.Detail)
-                    }
+                    },
+                    logout = logout
                 )
                 MainChild.MainTabs(component)
             }
@@ -224,7 +261,11 @@ class MainComponent(context: ComponentContext) : ComponentContext by context {
     }
 }
 
-class MainTabsComponent(context: ComponentContext, private val navigateToDetail: () -> Unit) : ComponentContext by context {
+class MainTabsComponent(
+    context: ComponentContext,
+    private val navigateToDetail: () -> Unit,
+    private val logout: () -> Unit
+) : ComponentContext by context {
     enum class Tab {
         HOME, PROFILE
     }
@@ -260,7 +301,10 @@ class MainTabsComponent(context: ComponentContext, private val navigateToDetail:
             }
 
             Tab.PROFILE -> {
-                val component = ProfileComponent(context)
+                val component = ProfileComponent(
+                    context = context,
+                    logout = logout
+                )
                 MainTabsChild.Profile(
                     component
                 )
@@ -278,13 +322,26 @@ class HomeComponent(
     context: ComponentContext,
     private val navigateToDetail: () -> Unit,
 ) : ComponentContext by context {
+
+    private val _email: MutableStateFlow<String> = MutableStateFlow("")
+    val email: StateFlow<String> = _email
+
+    init {
+        val currentEmail = AppSettings.getString(AppSettings.EMAIL, "")
+        _email.update { currentEmail }
+    }
+
     fun goToDetail(){
         navigateToDetail()
     }
 }
 
-class ProfileComponent(context: ComponentContext) : ComponentContext by context {
+class ProfileComponent(context: ComponentContext, private val logout: () -> Unit) : ComponentContext by context {
 
+    fun doLogout(){
+        AppSettings.logout()
+        logout()
+    }
 }
 
 class DetailComponent(context: ComponentContext, private val onBack: () -> Unit) : ComponentContext by context {
