@@ -13,12 +13,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
+import org.kot.cmpcourse.Todo
+import org.kot.cmpcourse.common.componentScope
 import org.kot.cmpcourse.repository.AppRepository
+import org.kot.cmpcourse.repository.TodoRepository
 import org.kot.cmpcourse.settings.AppSettings
 import kotlin.math.log
+import kotlin.random.Random
+import kotlin.time.Clock
 
 class MultiNavigationRootComponent(context: ComponentContext) : ComponentContext by context {
 
@@ -324,11 +330,17 @@ class MainTabsComponent(
 class HomeComponent(
     context: ComponentContext,
     private val appRepository: AppRepository,
+    private val todoRepository: TodoRepository,
     private val navigateToDetail: () -> Unit,
 ) : ComponentContext by context {
 
     private val _email: MutableStateFlow<String> = MutableStateFlow("")
     val email: StateFlow<String> = _email
+
+    private val _todos: MutableStateFlow<List<org.kot.cmpcourse.model.Todo>> = MutableStateFlow(emptyList())
+    val todo: MutableStateFlow<List<org.kot.cmpcourse.model.Todo>> = _todos
+
+    private val scope = componentScope()
 
     companion object : KoinComponent {
         fun factory(
@@ -338,18 +350,35 @@ class HomeComponent(
             return HomeComponent(
                 context = context,
                 navigateToDetail = navigateToDetail,
-                appRepository = get()
+                appRepository = get(),
+                todoRepository = get()
             )
         }
     }
 
     init {
         val currentEmail = appRepository.getLoggedInEmail()
+        fetchTodos()
         _email.update { currentEmail }
     }
 
     fun goToDetail(){
         navigateToDetail()
+    }
+
+    private fun fetchTodos() {
+        scope.launch {
+            val newTodos = todoRepository.getAll()
+            _todos.update { newTodos }
+        }
+    }
+
+    fun addTodo() {
+        scope.launch {
+            val id = "" + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50)
+            todoRepository.add(org.kot.cmpcourse.model.Todo(id = id, title = "Todo sample", isDone = 0))
+            fetchTodos()
+        }
     }
 }
 
