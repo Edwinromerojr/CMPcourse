@@ -1,5 +1,6 @@
 package org.kot.cmpcourse.di
 
+import com.russhwolf.settings.Settings
 import org.koin.dsl.bind
 import org.koin.dsl.module
 import org.kot.cmpcourse.TodoDatabase
@@ -16,7 +17,7 @@ val appModule = module {
     single {
         val sqlDriver = DriverFactory().createDriver()
         if (sqlDriver == null){
-            WebTodoRepositoryImpl()
+            WebTodoRepositoryImpl(Settings())
         } else {
             val database = TodoDatabase.invoke(sqlDriver)
             TodoRepositoryImpl(database)
