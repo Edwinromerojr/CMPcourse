@@ -9,6 +9,7 @@ import com.arkivanov.decompose.router.stack.childStack
 import com.arkivanov.decompose.router.stack.pop
 import com.arkivanov.decompose.router.stack.pushNew
 import com.arkivanov.decompose.router.stack.replaceAll
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -224,6 +225,14 @@ class MainComponent(context: ComponentContext, private val logout: () -> Unit) :
 
     val navigation = StackNavigation<MainConfiguration>()
 
+    sealed interface MainComponentEffect{
+        data object AddEditTodoSuccess : MainComponentEffect
+    }
+
+    private val _uiEffect: MutableSharedFlow<MainComponentEffect> = MutableSharedFlow()
+
+    private val scope = componentScope()
+
     val childStack = childStack(
         source = navigation,
         initialConfiguration = MainConfiguration.MainTabs,
@@ -231,15 +240,25 @@ class MainComponent(context: ComponentContext, private val logout: () -> Unit) :
         serializer = MainConfiguration.serializer()
     )
 
-    private fun createMainChild(configuration: MainConfiguration, context: ComponentContext): MainChild {
+    private fun createMainChild(
+        configuration: MainConfiguration,
+        context: ComponentContext
+    ): MainChild {
         return when (configuration) {
             is MainConfiguration.MainTabs -> {
                 val component = MainTabsComponent(
                     context = context,
+                    effect = _uiEffect,
                     navigateToDetail = {
                         navigation.pushNew(MainConfiguration.Detail)
                     },
-                    logout = logout
+                    logout = logout,
+                    navigateToAddEditTodo = { todo ->
+                        navigation.pushNew(
+                            MainConfiguration.AddEditTodo(todo)
+                        )
+                    },
+
                 )
                 MainChild.MainTabs(component)
             }
@@ -253,6 +272,20 @@ class MainComponent(context: ComponentContext, private val logout: () -> Unit) :
                 )
                 MainChild.Detail(component)
             }
+
+            is MainConfiguration.AddEditTodo -> {
+                val component = AddEditTodoComponent.factory(
+                    context = context,
+                    todo = configuration.todo,
+                    onComplete = {
+                        navigation.pop()
+                        scope.launch {
+                            _uiEffect.emit(MainComponentEffect.AddEditTodoSuccess)
+                        }
+                    }
+                )
+                MainChild.AddEditTodo(component)
+            }
         }
     }
 
@@ -262,17 +295,22 @@ class MainComponent(context: ComponentContext, private val logout: () -> Unit) :
         data object MainTabs : MainConfiguration()
         @Serializable
         data object Detail : MainConfiguration()
+        @Serializable
+        data class AddEditTodo(val todo: org.kot.cmpcourse.model.Todo?) : MainConfiguration()
     }
 
     sealed class MainChild {
         class MainTabs(val component: MainTabsComponent) : MainChild()
         class Detail(val component: DetailComponent) : MainChild()
+        class AddEditTodo(val component: AddEditTodoComponent) : MainChild()
     }
 }
 
 class MainTabsComponent(
     context: ComponentContext,
+    private val effect: MutableSharedFlow<MainComponent.MainComponentEffect>,
     private val navigateToDetail: () -> Unit,
+    private val navigateToAddEditTodo: (todo: org.kot.cmpcourse.model.Todo?) -> Unit,
     private val logout: () -> Unit
 ) : ComponentContext by context {
     enum class Tab {
@@ -300,8 +338,12 @@ class MainTabsComponent(
             Tab.HOME -> {
                 val component = HomeComponent.factory(
                     context = context,
+                    effect = effect,
                     navigateToDetail = {
                         navigateToDetail()
+                    },
+                    navigateToAddEditTodo = { todo ->
+                        navigateToAddEditTodo(todo)
                     }
                 )
                 MainTabsChild.Home(
@@ -329,9 +371,11 @@ class MainTabsComponent(
 
 class HomeComponent(
     context: ComponentContext,
+    private val effect: MutableSharedFlow<MainComponent.MainComponentEffect>,
     private val appRepository: AppRepository,
     private val todoRepository: TodoRepository,
     private val navigateToDetail: () -> Unit,
+    private val navigateToAddEditTodo: (todo: org.kot.cmpcourse.model.Todo?) -> Unit
 ) : ComponentContext by context {
 
     private val _email: MutableStateFlow<String> = MutableStateFlow("")
@@ -345,13 +389,17 @@ class HomeComponent(
     companion object : KoinComponent {
         fun factory(
             context: ComponentContext,
+            effect: MutableSharedFlow<MainComponent.MainComponentEffect>,
             navigateToDetail: () -> Unit,
+            navigateToAddEditTodo: (todo: org.kot.cmpcourse.model.Todo?) -> Unit
         ) : HomeComponent {
             return HomeComponent(
                 context = context,
+                effect = effect,
                 navigateToDetail = navigateToDetail,
                 appRepository = get(),
-                todoRepository = get()
+                todoRepository = get(),
+                navigateToAddEditTodo = navigateToAddEditTodo
             )
         }
     }
@@ -360,6 +408,15 @@ class HomeComponent(
         val currentEmail = appRepository.getLoggedInEmail()
         fetchTodos()
         _email.update { currentEmail }
+        scope.launch {
+            effect.collect { ef ->
+                when (ef) {
+                    is MainComponent.MainComponentEffect.AddEditTodoSuccess -> {
+                        fetchTodos()
+                    }
+                }
+            }
+        }
     }
 
     fun goToDetail(){
@@ -373,10 +430,28 @@ class HomeComponent(
         }
     }
 
+    fun goToAddEditTodo(todo: org.kot.cmpcourse.model.Todo) {
+        navigateToAddEditTodo(todo)
+    }
+
     fun addTodo() {
+        navigateToAddEditTodo(null)
+    }
+
+    fun onCheckChange(todo: org.kot.cmpcourse.model.Todo, newChecked: Boolean) {
         scope.launch {
-            val id = "" + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50) + Random.nextInt(50)
-            todoRepository.add(org.kot.cmpcourse.model.Todo(id = id, title = "Todo sample", isDone = 0))
+            todoRepository.update(
+                todo.copy(
+                    isDone = if (newChecked) 1 else 0
+                )
+            )
+            fetchTodos()
+        }
+    }
+
+    fun delete(todo: org.kot.cmpcourse.model.Todo) {
+        scope.launch {
+            todoRepository.delete(todo.id)
             fetchTodos()
         }
     }
@@ -394,4 +469,105 @@ class DetailComponent(context: ComponentContext, private val onBack: () -> Unit)
     fun goBack() {
         onBack()
     }
+}
+
+class AddEditTodoComponent(
+    context: ComponentContext,
+    private val todo: org.kot.cmpcourse.model.Todo? = null,
+    private val todoRepository: TodoRepository,
+    private val onComplete: () -> Unit
+) : ComponentContext by context {
+
+    private val _uiState: MutableStateFlow<AddEditTodoUiState> = MutableStateFlow(AddEditTodoUiState())
+    val uiState: StateFlow<AddEditTodoUiState> = _uiState.asStateFlow()
+
+    private val scope = componentScope()
+
+    companion object : KoinComponent {
+        fun factory(
+            context: ComponentContext,
+            todo: org.kot.cmpcourse.model.Todo? = null,
+            onComplete: () -> Unit
+        ) : AddEditTodoComponent {
+            return AddEditTodoComponent(
+                context = context,
+                todo = todo,
+                todoRepository = get(),
+                onComplete = onComplete
+            )
+        }
+    }
+
+    init {
+        if (todo != null) {
+            _uiState.update { uiState ->
+                uiState.copy(
+                    id = todo.id,
+                    title = todo.title,
+                    isDone = todo.isDone,
+                    idEnabled = false
+                )
+            }
+        }
+    }
+
+    fun onEvent(event: AddEditTodoEvent) {
+        when (event) {
+            is AddEditTodoEvent.UpdateID -> {
+                _uiState.update { currentUiState ->
+                    currentUiState.copy(
+                        id = event.id
+                    )
+                }
+            }
+
+            is AddEditTodoEvent.UpdateTitle -> {
+                _uiState.update { currentUiState ->
+                    currentUiState.copy(
+                        title = event.title
+                    )
+                }
+            }
+
+            is AddEditTodoEvent.OnIsDoneCheckedChange -> {
+                _uiState.update { currentUiState ->
+                    currentUiState.copy(
+                        isDone = if (event.checked) 1L else 0L
+                    )
+                }
+            }
+
+            is AddEditTodoEvent.Submit -> {
+                scope.launch {
+                    val uiState = _uiState.value
+                    val newTodo = org.kot.cmpcourse.model.Todo(
+                        id =  uiState.id,
+                        title = uiState.title,
+                        isDone = uiState.isDone
+                    )
+                    if (todo != null) {
+                        todoRepository.update(newTodo)
+                    } else {
+
+                        todoRepository.add(newTodo)
+                    }
+                    onComplete()
+                }
+            }
+        }
+    }
+
+    sealed interface AddEditTodoEvent {
+        data class UpdateID(val id: String) : AddEditTodoEvent
+        data class UpdateTitle(val title: String) : AddEditTodoEvent
+        data class OnIsDoneCheckedChange(val checked: Boolean) : AddEditTodoEvent
+        data object Submit : AddEditTodoEvent
+    }
+
+    data class AddEditTodoUiState(
+        val id: String = "",
+        val title: String = "",
+        val isDone: Long = 0,
+        val idEnabled: Boolean = true
+    )
 }
