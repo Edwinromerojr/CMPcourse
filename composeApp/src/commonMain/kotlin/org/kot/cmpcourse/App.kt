@@ -11,5 +11,5 @@ import org.kot.cmpcourse.scaffold.ScaffoldScreen
 @Composable
 @Preview
 fun App(component: MultiNavigationRootComponent) {
-    MultiNavigationRootScreen(component)
+    PostScreen()
 }
